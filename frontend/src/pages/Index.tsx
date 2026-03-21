@@ -1050,13 +1050,83 @@ const CreatePostView = ({
     description: '',
     location: '',
     lostAt: new Date().toISOString().slice(0, 16),
-    imageUrl: '',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setUploadProgress(0);
+  };
+
+  const uploadImageToS3 = async (file: File): Promise<string | undefined> => {
+    try {
+      // Step 1: Get presigned URL
+      setUploadProgress(10);
+      const presignRes = await fetch('/api/upload/presigned-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      });
+      const presignData = await presignRes.json();
+      if (!presignData.success) throw new Error('获取上传地址失败');
+
+      const { presignedUrl, s3Key, uploadId } = presignData.data;
+      setUploadProgress(30);
+
+      // Step 2: Upload to S3
+      await fetch(presignedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      setUploadProgress(80);
+
+      // Step 3: Complete upload
+      const completeRes = await fetch('/api/upload/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          uploadId,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          s3Key,
+        }),
+      });
+      const completeData = await completeRes.json();
+      setUploadProgress(100);
+      if (completeData.success) return completeData.data.s3Url;
+    } catch (_err) {
+      throw new Error('图片上传失败，请重试');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1068,13 +1138,17 @@ const CreatePostView = ({
     }
     setLoading(true);
     try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        imageUrl = await uploadImageToS3(imageFile);
+      }
       const res = await postsApi.create({
         type: form.type,
         title: form.title,
         description: form.description,
         location: form.location,
         lostAt: new Date(form.lostAt).toISOString(),
-        imageUrl: form.imageUrl || undefined,
+        imageUrl,
       });
       if (res.success) {
         toast.success('发布成功！');
@@ -1082,10 +1156,11 @@ const CreatePostView = ({
       } else {
         setError('发布失败，请稍后重试');
       }
-    } catch (_err) {
-      setError('网络错误，请稍后重试');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '网络错误，请稍后重试');
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1201,19 +1276,59 @@ const CreatePostView = ({
             </div>
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
             <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-1.5">
-              图片链接 <span className="text-[#64748B] font-normal normal-case">（可选）</span>
+              物品图片 <span className="text-[#64748B] font-normal normal-case">（可选，支持任意图片格式）</span>
             </label>
-            <input
-              name="imageUrl"
-              type="url"
-              value={form.imageUrl}
-              onChange={handleChange}
-              placeholder="粘贴图片URL（可选）"
-              className="w-full px-3 py-2.5 text-sm bg-[#F0F4F8] border border-[#CBD5E1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/30 focus:border-[#1D4ED8] transition-all"
-            />
+            {imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-[#CBD5E1] bg-[#F0F4F8]">
+                <img
+                  src={imagePreview}
+                  alt="预览"
+                  className="w-full h-48 object-cover"
+                />
+                {loading && uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+                    <div className="w-48 h-2 bg-white/30 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-white text-sm font-medium">上传中 {uploadProgress}%</span>
+                  </div>
+                )}
+                {!loading && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                  {imageFile?.name}
+                </div>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-[#CBD5E1] rounded-xl cursor-pointer bg-[#F0F4F8] hover:bg-blue-50 hover:border-[#1D4ED8] transition-all group">
+                <div className="flex flex-col items-center gap-2 text-[#64748B] group-hover:text-[#1D4ED8] transition-colors">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm font-medium">点击上传图片</span>
+                  <span className="text-xs">支持 JPG、PNG、GIF、WebP、HEIC 等任意图片格式</span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+              </label>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -1229,7 +1344,7 @@ const CreatePostView = ({
               disabled={loading}
               className="flex-1 bg-[#1D4ED8] text-white font-semibold py-3 rounded-xl text-sm hover:bg-blue-700 transition-all duration-200 shadow-md disabled:opacity-60"
             >
-              {loading ? '发布中...' : '立即发布'}
+              {loading ? (imageFile && uploadProgress < 100 ? `上传中 ${uploadProgress}%...` : '发布中...') : '立即发布'}
             </button>
           </div>
         </form>

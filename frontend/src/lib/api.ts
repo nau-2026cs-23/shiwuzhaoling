@@ -7,7 +7,8 @@ import type {
   Message,
   Conversation,
   User,
-} from '@/types';
+  BlockedUserEntry,
+} from '@shared/types/api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -125,9 +126,7 @@ export const profileApi = {
   getFavorites: () => request<PostWithUser[]>('/api/profile/favorites'),
 
   getBlocks: () =>
-    request<{ block: unknown; blockedUser: { id: string; name: string; avatarUrl?: string; college?: string } | null }[]>(
-      '/api/profile/blocks'
-    ),
+    request<BlockedUserEntry[]>('/api/profile/blocks'),
 
   blockUser: (userId: string) =>
     request<unknown>(`/api/profile/blocks/${userId}`, { method: 'POST' }),

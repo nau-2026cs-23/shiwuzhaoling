@@ -69,7 +69,7 @@ A full-stack campus lost & found platform built with React + Express + PostgreSQ
 - Filter by time (today, 7 days, 30 days)
 - Keyword search
 - Post detail with image, description, time, location
-- Create lost/found posts with image URL
+- Create lost/found posts with image file upload (any format: JPG, PNG, GIF, WebP, HEIC, etc.)
 - Mark posts as completed
 - Edit/delete own posts
 
