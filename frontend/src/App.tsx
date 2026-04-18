@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Index from './pages/Index';
 import Login from './components/custom/Login';
 import Signup from './components/custom/Signup';
+import AdminLogin from './components/custom/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -24,6 +26,10 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      {/* Admin routes - completely separate from user routes */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      {/* User routes */}
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}

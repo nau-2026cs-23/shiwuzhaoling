@@ -70,7 +70,9 @@ const Signup = () => {
         toast.success('注册成功', { description: `欢迎加入寻回校园，${form.name}！` });
         navigate('/', { replace: true });
       } else {
-        setError(data.message || '注册失败，请稍后重试');
+        // Handle both error formats: { message } and { error: { message } }
+        const errMsg = data.message || data.error?.message || data.error?.details?.[0]?.message || '注册失败，请稍后重试';
+        setError(errMsg);
       }
     } catch {
       setError('网络错误，请稍后重试');

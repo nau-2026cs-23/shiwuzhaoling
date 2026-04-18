@@ -217,7 +217,8 @@ const Index = () => {
   );
 
   useEffect(() => {
-    fetchPosts(true);
+    const run = async () => { await fetchPosts(true); };
+    run();
   }, [tabFilter, locationFilter, timeFilter, searchQuery]);
 
   useEffect(() => {

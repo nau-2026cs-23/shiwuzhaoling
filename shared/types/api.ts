@@ -35,6 +35,7 @@ export interface SafeUser {
   phone?: string;
   college?: string;
   avatarUrl?: string;
+  role?: string;
 }
 
 // ============================================
@@ -70,6 +71,7 @@ export interface MeResponse {
 // ============================================
 export type PostType = 'lost' | 'found';
 export type PostStatus = 'active' | 'completed' | 'hidden';
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Post {
   id: string;
@@ -82,6 +84,8 @@ export interface Post {
   imageUrl?: string;
   status: PostStatus;
   reportCount: number;
+  reviewStatus: ReviewStatus;
+  adminNote?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -241,4 +245,37 @@ export interface UpdateProfileRequest {
 export interface UploadResponse {
   url: string;
   key: string;
+}
+
+// ============================================
+// Admin Types
+// ============================================
+export interface AdminPostWithUser {
+  post: Post;
+  user: PostUser | null;
+}
+
+export interface AdminStats {
+  totalPosts: number;
+  pendingPosts: number;
+  approvedPosts: number;
+  rejectedPosts: number;
+  totalUsers: number;
+  reportedPosts: number;
+}
+
+export interface AdminReviewRequest {
+  reviewStatus: ReviewStatus;
+  adminNote?: string;
+}
+
+export interface AdminUserEntry {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  studentId?: string;
+  college?: string;
+  createdAt: string;
+  postCount: number;
 }
