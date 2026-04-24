@@ -62,6 +62,8 @@ A full-stack campus lost & found platform built with React + Express + PostgreSQ
 - Register with name, email, password (student ID, phone, college optional)
 - Login with email + password
 - JWT-based session management
+- Admin login at `/#/admin/login` (separate from user login)
+- Admin account: admin@campus.edu / admin888 (seeded at server startup via bcrypt hash)
 
 ### Posts (Lost & Found)
 - Browse all posts with tab filter (All / Lost / Found)
@@ -86,10 +88,19 @@ A full-stack campus lost & found platform built with React + Express + PostgreSQ
 - Blacklist management (block/unblock)
 - Profile settings (name, college, phone, student ID)
 
+### Admin Dashboard (completely separate from user app)
+- Admin login at `/#/admin/login` with role check
+- Dashboard stats (total posts, pending, approved, rejected, users, reported)
+- Post review: approve or reject posts (with optional rejection reason)
+- Rejected posts are auto-hidden from users
+- User management: view all registered users with post counts
+- Report handling: view reported posts and delete or keep them
+- Admin token stored separately as `adminToken` in localStorage
+
 ## Database Tables
 
-- `Users` - user accounts with optional student ID, phone, college
-- `Posts` - lost/found posts with type, location, status, report count
+- `Users` - user accounts with optional student ID, phone, college; `role` field ('user'|'admin')
+- `Posts` - lost/found posts with type, location, status, report count; `review_status` ('pending'|'approved'|'rejected'), `admin_note`
 - `Comments` - post comments with optional parent (replies)
 - `Messages` - private messages between users
 - `Reports` - post reports (auto-hide at 3)
@@ -121,12 +132,21 @@ A full-stack campus lost & found platform built with React + Express + PostgreSQ
 - `POST /api/profile/blocks/:userId` - Block user
 - `DELETE /api/profile/blocks/:userId` - Unblock user
 - `PUT /api/profile` - Update profile
+- `GET /api/admin/stats` - Admin dashboard stats (admin only)
+- `GET /api/admin/posts` - All posts for review (admin only)
+- `PUT /api/admin/posts/:id/review` - Approve/reject post (admin only)
+- `DELETE /api/admin/posts/:id` - Delete any post (admin only)
+- `GET /api/admin/users` - All users list (admin only)
+- `GET /api/admin/reports` - Reported posts (admin only)
 
 ## Code Generation Guidelines
 
 - All new entities follow: schema.ts → repository → route → frontend api.ts → component
 - Repository methods accept `z.infer<typeof insertXSchema>` types
 - Use `as InsertX` type assertion only in `.values()` calls
-- Frontend API calls use `postsApi`, `messagesApi`, `profileApi`, `authApi` from `lib/api.ts`
+- Frontend API calls use `postsApi`, `messagesApi`, `profileApi`, `authApi`, `adminApi` from `lib/api.ts`
 - All views are rendered inside `Index.tsx` using `currentView` state
 - Navigation uses `setCurrentView()` - no separate route files for sub-views
+- Admin routes (`/admin`, `/admin/login`) are completely separate from user routes
+- Admin uses `adminToken` in localStorage; user uses `token` in localStorage
+- Admin middleware `requireAdmin` checks `user.role === 'admin'` after `authenticateJWT`

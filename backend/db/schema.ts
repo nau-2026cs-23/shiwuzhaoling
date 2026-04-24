@@ -18,6 +18,7 @@ export const users = pgTable('Users', {
   phone: text('phone'),
   college: text('college'),
   avatarUrl: text('avatar_url'),
+  role: text('role').notNull().default('user'), // 'user' | 'admin'
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -70,6 +71,8 @@ export const posts = pgTable('Posts', {
   imageUrl: text('image_url'),
   status: text('status').notNull().default('active'), // 'active' | 'completed' | 'hidden'
   reportCount: integer('report_count').notNull().default(0),
+  reviewStatus: text('review_status').notNull().default('approved'), // 'pending' | 'approved' | 'rejected'
+  adminNote: text('admin_note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -82,6 +85,8 @@ export const insertPostSchema = createInsertSchema(posts, {
   lostAt: z.coerce.date(),
   imageUrl: z.string().optional(),
   status: z.enum(['active', 'completed', 'hidden']).optional(),
+  reviewStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
+  adminNote: z.string().optional(),
 });
 
 export const updatePostSchema = insertPostSchema.partial();

@@ -40,7 +40,7 @@ const Login = () => {
         toast.success('登录成功', { description: `欢迎回来，${data.data.user?.name || ''}` });
         navigate('/', { replace: true });
       } else {
-        setError(data.message || '邮箱或密码错误');
+        setError(data.message || data.error?.message || '邮箱或密码错误，请检查后重试');
       }
     } catch {
       setError('网络错误，请稍后重试');

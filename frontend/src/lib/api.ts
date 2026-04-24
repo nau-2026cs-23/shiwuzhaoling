@@ -147,3 +147,36 @@ export const profileApi = {
 export const authApi = {
   me: () => request<{ user: User }>('/api/auth/me'),
 };
+
+// ============================================
+// Admin API (uses adminToken, not user token)
+// ============================================
+const adminRequest = async <T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> => {
+  const token = localStorage.getItem('adminToken');
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers || {}),
+    },
+  });
+  return response.json() as Promise<ApiResponse<T>>;
+};
+
+export const adminApi = {
+  getStats: () => adminRequest<import('@shared/types/api').AdminStats>('/api/admin/stats'),
+  getPosts: (reviewStatus?: string) => {
+    const qs = reviewStatus && reviewStatus !== 'all' ? `?reviewStatus=${reviewStatus}` : '';
+    return adminRequest<import('@shared/types/api').AdminPostWithUser[]>(`/api/admin/posts${qs}`);
+  },
+  reviewPost: (id: string, reviewStatus: string, adminNote?: string) =>
+    adminRequest(`/api/admin/posts/${id}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ reviewStatus, adminNote }),
+    }),
+  deletePost: (id: string) =>
+    adminRequest(`/api/admin/posts/${id}`, { method: 'DELETE' }),
+  getUsers: () => adminRequest<import('@shared/types/api').AdminUserEntry[]>('/api/admin/users'),
+  getReports: () => adminRequest<import('@shared/types/api').AdminPostWithUser[]>('/api/admin/reports'),
+};

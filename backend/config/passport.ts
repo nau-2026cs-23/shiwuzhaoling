@@ -57,9 +57,9 @@ passport.use(
           return done(null, false);
         }
         
-        // Return the user without the password
+        // Return the user without the password, include role
         const { password: _, ...userWithoutPassword } = user;
-        return done(null, userWithoutPassword);
+        return done(null, { ...userWithoutPassword, role: user.role || 'user' });
       } catch (error) {
         return done(error, false);
       }
