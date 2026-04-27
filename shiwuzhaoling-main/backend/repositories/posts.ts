@@ -9,8 +9,15 @@ type CreateCommentInput = z.infer<typeof insertCommentSchema>;
 type CreateReportInput = z.infer<typeof insertReportSchema>;
 
 export class PostRepository {
-  async create(data: CreatePostInput) {
-    const [post] = await db.insert(posts).values(data as InsertPost).returning();
+  async create(data: CreatePostInput, userRole: string = 'user') {
+    // For regular users, set reviewStatus to 'pending' for admin approval
+    // For admins, set reviewStatus to 'approved' immediately
+    const reviewStatus = userRole === 'admin' ? 'approved' : 'pending';
+    
+    const [post] = await db.insert(posts).values({
+      ...data as InsertPost,
+      reviewStatus
+    }).returning();
     return post;
   }
 
@@ -22,11 +29,18 @@ export class PostRepository {
     excludeUserIds?: string[];
     page?: number;
     limit?: number;
+    userRole?: string;
   } = {}) {
-    const { type, location, timeFilter, search, excludeUserIds, page = 1, limit = 20 } = filters;
+    const { type, location, timeFilter, search, excludeUserIds, page = 1, limit = 20, userRole = 'user' } = filters;
     const offset = (page - 1) * limit;
 
     const conditions = [eq(posts.status, 'active')];
+    
+    // Only show approved posts to regular users
+    // Admins can see all posts
+    if (userRole !== 'admin') {
+      conditions.push(eq(posts.reviewStatus, 'approved'));
+    }
 
     if (type && type !== 'all') {
       conditions.push(eq(posts.type, type));
